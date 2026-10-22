@@ -200,9 +200,16 @@
 // ★ 1. songs フォルダに置くファイル名を指定
 // ==========================================
 const DEFAULT_SONGS = [
-    { tja: 'songs/song1.tja', audio: 'songs/song1.mp3' },
-    // 追加したい場合は下記のように列挙してください
-    // { tja: 'songs/song2.tja', audio: 'songs/song2.ogg' },
+    { tja: 'songs/Nivalis＊Anima.tja', audio: 'songs/Nivalis＊Anima.ogg' },
+    // { tja: 'songs/幽玄ノ乱.tja', audio: 'songs/幽玄ノ乱.ogg' },
+    // { tja: 'songs/青と夏.tja', audio: 'songs/青と夏.ogg' },
+    // { tja: 'songs/夏祭り.tja', audio: 'songs/夏祭り.ogg' },
+    // { tja: 'songs/ナイト・オブ・ナイツ.tja', audio: 'songs/ナイト・オブ・ナイツ.ogg' },
+    // { tja: 'songs/MONTAGEM HIKARI.tja', audio: 'songs/MONTAGEM HIKARI.ogg' },
+    // { tja: 'songs/Vixtory.tja', audio: 'songs/Vixtory.ogg' },
+    // { tja: 'songs/poxei◆DOON.tja', audio: 'songs/poxei◆DOON.ogg' },
+    // { tja: 'songs/MEGALOVANIA.tja', audio: 'songs/MEGALOVANIA.ogg' },
+
 ];
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -885,7 +892,7 @@ function finishGame() {
 
     if (counts.bad === 0 && (counts.good + counts.ok) > 0) {
         if (counts.ok === 0) {
-            resText = 'ドンダフルコンボ！！';
+            resText = '全良！ドンダフルコンボ！！';
             resColor = '#ffd700';
         } else {
             resText = 'フルコンボ！';
