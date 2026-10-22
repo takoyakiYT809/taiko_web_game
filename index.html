@@ -145,7 +145,7 @@
         </label>
         
         <div class="song-list-container" id="song-list">
-            <div style="text-align:center; padding-top:70px; color:#aaa;">ファイルを追加読み込みしてください</div>
+            <div style="text-align:center; padding-top:70px; color:#aaa;">楽曲を読み込んでいます...</div>
         </div>
 
         <div class="mod-panel">
@@ -196,6 +196,15 @@
 </div>
 
 <script>
+// ==========================================
+// ★ 1. songs フォルダに置くファイル名を指定
+// ==========================================
+const DEFAULT_SONGS = [
+    { tja: 'songs/song1.tja', audio: 'songs/song1.mp3' },
+    // 追加したい場合は下記のように列挙してください
+    // { tja: 'songs/song2.tja', audio: 'songs/song2.ogg' },
+];
+
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let bgmBuffer = null, bgmSource = null, bgmStartTime = 0, pauseOffset = 0, isPaused = false;
 
@@ -296,7 +305,6 @@ function parseTJA(text) {
     return { meta, courses };
 }
 
-// タイムラインを完全静的にコンパイル（BPM変更・変拍子を完璧に事前計算）
 function buildTimeline(lines, initialBpm, offset, balloonList) {
     let notes = [];
     let barLines = [];
@@ -414,6 +422,38 @@ let explosionParticles = [];
 let drumAnim = { don: 0, ka: 0, faceScale: 1.0 };
 let lastAutoRollTime = 0;
 
+// ==========================================
+// ★ 2. デフォルト楽曲の自動読み込み処理
+// ==========================================
+async function loadDefaultSongs() {
+    for (let item of DEFAULT_SONGS) {
+        try {
+            const resTja = await fetch(item.tja);
+            if (!resTja.ok) continue;
+            
+            // TJAのテキスト（Shift-JISまたはUTF-8対応）
+            const buffer = await resTja.arrayBuffer();
+            let text = new TextDecoder('shift_jis').decode(buffer);
+            if (text.includes('')) {
+                text = new TextDecoder('utf-8').decode(buffer);
+            }
+
+            const parsed = parseTJA(text);
+            loadedSongs.push({
+                title: parsed.meta.title || 'Untitled',
+                parsed: parsed,
+                audioUrl: item.audio
+            });
+        } catch (e) {
+            console.error('デフォルト曲の読み込みに失敗しました:', item, e);
+        }
+    }
+    renderSongList();
+}
+
+// 起動時に呼び出し
+loadDefaultSongs();
+
 function gotoScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -453,7 +493,7 @@ function renderSongList() {
     const list = document.getElementById('song-list');
     list.innerHTML = '';
     if (loadedSongs.length === 0) {
-        list.innerHTML = `<div style="text-align:center; padding-top:70px; color:#aaa;">ファイルを追加読み込みしてください</div>`;
+        list.innerHTML = `<div style="text-align:center; padding-top:70px; color:#aaa;">楽曲が見つかりません</div>`;
         document.getElementById('btn-to-diff').disabled = true;
         return;
     }
@@ -487,7 +527,18 @@ async function startGame(courseIdx) {
     document.getElementById('pause-overlay').style.display = 'none';
 
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    const arrayBuffer = await song.audioFile.arrayBuffer();
+
+    // ==========================================
+    // ★ 3. URL読み込みとローカルファイル読み込みの両方に対応
+    // ==========================================
+    let arrayBuffer;
+    if (song.audioUrl) {
+        const res = await fetch(song.audioUrl);
+        arrayBuffer = await res.arrayBuffer();
+    } else if (song.audioFile) {
+        arrayBuffer = await song.audioFile.arrayBuffer();
+    }
+
     bgmBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
     gotoScreen('gameCanvas');
@@ -834,7 +885,7 @@ function finishGame() {
 
     if (counts.bad === 0 && (counts.good + counts.ok) > 0) {
         if (counts.ok === 0) {
-            resText = '全良！ドンダフルコンボ！！';
+            resText = 'ドンダフルコンボ！！';
             resColor = '#ffd700';
         } else {
             resText = 'フルコンボ！';
