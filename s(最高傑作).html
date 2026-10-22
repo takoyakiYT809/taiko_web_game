@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太鼓の達人 - PERFECT ARCADE ENGINE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap');
+
+        :root {
+            --don-red: #ff2442;
+            --ka-blue: #00bfff;
+            --gold: #ffd700;
+        }
+
+        * { box-sizing: border-box; user-select: none; margin: 0; padding: 0; }
+
+        body {
+            background-color: #050508;
+            color: #fff;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden;
+        }
+
+        #stage {
+            position: relative;
+            width: 960px; height: 540px;
+            background: #000;
+            border: 4px solid #fff;
+            border-radius: 16px;
+            box-shadow: 0 0 80px rgba(255, 0, 50, 0.5);
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 10; opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: scale(0.95);
+        }
+        .screen.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+        /* タイトル画面 */
+        #screen-title { background: radial-gradient(circle at center, #d31027 0%, #ea384d 40%, #160003 100%); }
+        .logo-title {
+            font-size: 80px; font-weight: 900; color: var(--gold);
+            text-shadow: 5px 5px 0 #000, -5px -5px 0 #000, 5px -5px 0 #000, -5px 5px 0 #000, 0 0 40px #ff0055;
+            letter-spacing: 6px; animation: arcadeBounce 0.8s infinite alternate ease-in-out;
+        }
+        @keyframes arcadeBounce { 0% { transform: scale(1) rotate(-1deg); } 100% { transform: scale(1.04) rotate(1deg); } }
+
+        .btn-action {
+            margin-top: 25px; padding: 14px 45px; font-size: 22px; font-weight: 900;
+            background: linear-gradient(180deg, #ffffff, #ffe100); color: #111;
+            border: 4px solid #000; border-radius: 50px;
+            box-shadow: 0 8px 0 #887000, 0 12px 25px rgba(0,0,0,0.7);
+            cursor: pointer; transition: all 0.15s ease;
+        }
+        .btn-action:hover { transform: scale(1.05); }
+
+        /* 選曲画面 */
+        #screen-select { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
+        .file-input-btn {
+            background: rgba(255,255,255,0.15); border: 3px dashed var(--gold);
+            padding: 10px 20px; border-radius: 12px; font-weight: 900; font-size: 15px;
+            cursor: pointer; margin-bottom: 10px; color: #fff;
+        }
+
+        .song-list-container {
+            width: 85%; height: 210px; overflow-y: auto; background: rgba(0,0,0,0.6);
+            border: 3px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 10px;
+        }
+        .song-card {
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            margin: 8px 0; padding: 12px 20px; border-radius: 10px; font-weight: 900;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            border: 3px solid transparent; transition: all 0.2s ease;
+        }
+        .song-card.selected {
+            border-color: #fff; box-shadow: 0 0 20px var(--gold);
+            transform: scale(1.02); background: linear-gradient(90deg, #ff1361, #fff800); color: #000;
+        }
+
+        .mod-panel {
+            display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+            background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 30px; margin-top: 10px; width: 88%;
+        }
+        .mod-btn {
+            padding: 6px 14px; font-size: 13px; font-weight: 900; background: #222;
+            border: 2px solid #555; border-radius: 20px; cursor: pointer; color: #ccc;
+        }
+        .mod-btn.active { background: var(--gold); color: #000; border-color: #fff; }
+
+        /* 難易度画面 */
+        #screen-diff { background: radial-gradient(circle, #1a2a6c, #b21f1f, #fdbb2d); }
+        .diff-grid { display: flex; gap: 15px; margin-top: 20px; }
+        .diff-card {
+            width: 120px; height: 180px; border-radius: 14px; border: 4px solid #fff;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-weight: 900; font-size: 20px; cursor: pointer;
+        }
+        .diff-0 { background: #4caf50; } .diff-1 { background: #2196f3; }
+        .diff-2 { background: #ff9800; } .diff-3 { background: #f44336; }
+        .diff-4 { background: linear-gradient(135deg, #8e24aa, #3a1c71); color: var(--gold); }
+
+        /* ポーズ */
+        #pause-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.88); z-index: 100; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        /* リザルト */
+        #screen-result { background: radial-gradient(circle, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%); }
+        .result-box {
+            background: rgba(10, 10, 15, 0.9); border: 4px solid var(--gold);
+            border-radius: 20px; padding: 30px 60px; text-align: center;
+        }
+
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+    </style>
+</head>
+<body>
+
+<div id="stage">
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+    <!-- 1. タイトル画面 -->
+    <div id="screen-title" class="screen active">
+        <div class="logo-title">太鼓の達人</div>
+        <div style="font-size:20px; font-weight:900; margin-top:8px; color:#fff;">PRO ARCADE ENGINE</div>
+        <button class="btn-action" onclick="gotoScreen('screen-select')">演奏をはじめる！</button>
+    </div>
+
+    <!-- 2. 選曲画面 -->
+    <div id="screen-select" class="screen">
+        <h2 style="color:var(--gold); margin-bottom:8px;">曲を選んでね！</h2>
+        <label class="file-input-btn">
+            📁 TJAや音源ファイルを自由に追加選択 (.tja, .mp3, .ogg, .wav)
+            <input type="file" id="file-input" multiple accept=".tja,.mp3,.ogg,.wav" style="display:none;">
+        </label>
+        
+        <div class="song-list-container" id="song-list">
+            <div style="text-align:center; padding-top:70px; color:#aaa;">ファイルを追加読み込みしてください</div>
+        </div>
+
+        <div class="mod-panel">
+            <button class="mod-btn" id="mod-auto" onclick="toggleMod('auto')">AUTO: OFF</button>
+            <button class="mod-btn" id="mod-speed" onclick="toggleMod('speed')">倍速: 1.0x</button>
+            <button class="mod-btn" id="mod-abekobe" onclick="toggleMod('abekobe')">あべこべ: OFF</button>
+            <button class="mod-btn" id="mod-doron" onclick="toggleMod('doron')">ドロン: OFF</button>
+        </div>
+
+        <button id="btn-to-diff" class="btn-action" style="font-size:18px; padding:10px 30px;" disabled onclick="gotoDifficulty()">難易度選択へ →</button>
+    </div>
+
+    <!-- 3. 難易度選択 -->
+    <div id="screen-diff" class="screen">
+        <h2 id="diff-title" style="color:#fff; font-size:32px;">曲名</h2>
+        <div class="diff-grid">
+            <div class="diff-card diff-0" onclick="startGame(0)">かんたん</div>
+            <div class="diff-card diff-1" onclick="startGame(1)">ふつう</div>
+            <div class="diff-card diff-2" onclick="startGame(2)">むずかしい</div>
+            <div class="diff-card diff-3" onclick="startGame(3)">おに</div>
+            <div class="diff-card diff-4" id="btn-ura" style="display:none;" onclick="startGame(4)">裏おに</div>
+        </div>
+    </div>
+
+    <!-- 中断メニュー -->
+    <div id="pause-overlay">
+        <h1 style="color:var(--gold); font-size:46px; margin-bottom:15px;">演奏中断</h1>
+        <button class="btn-action" style="font-size:16px; padding:10px 30px; margin:6px;" onclick="resumeGame()">演奏を再開</button>
+        <button class="btn-action" style="font-size:16px; padding:10px 30px; margin:6px;" onclick="restartGame()">はじめからやり直す</button>
+        <button class="btn-action" style="font-size:16px; padding:10px 30px; margin:6px; background:#ff2442; color:#fff;" onclick="quitGame()">選曲画面へ戻る</button>
+    </div>
+
+    <!-- 4. リザルト画面 -->
+    <div id="screen-result" class="screen">
+        <div class="result-box">
+            <div id="res-status" style="font-size:46px; font-weight:900; color:var(--gold);">ノルマクリア！</div>
+            <div id="res-score" style="font-size:42px; font-weight:900; color:#fff; margin-top:5px;">0000000</div>
+            <div style="font-size:22px; font-weight:900; margin:20px 0; line-height:1.8;">
+                <span style="color:#ffea00">良: <span id="res-good">0</span></span> | 
+                <span style="color:#ffffff">可: <span id="res-ok">0</span></span> | 
+                <span style="color:#ff2442">不可: <span id="res-bad">0</span></span><br>
+                <span style="color:var(--gold)">最大コンボ: <span id="res-combo">0</span></span> | 
+                <span style="color:#ffb700">連打: <span id="res-roll">0</span></span>
+            </div>
+            <button class="btn-action" style="font-size:18px; padding:10px 30px;" onclick="gotoScreen('screen-select')">選曲画面へ戻る</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let bgmBuffer = null, bgmSource = null, bgmStartTime = 0, pauseOffset = 0, isPaused = false;
+
+const TARGET_X = 210;
+const LANE_Y = 180;
+const LEAD_TIME = 2.0;
+
+let keyBinds = { donLeft: 'f', donRight: 'j', kaLeft: 'd', kaRight: 'k' };
+let mods = { auto: false, speed: 1.0, abekobe: false, doron: false };
+
+function toggleMod(type) {
+    if (type === 'auto') mods.auto = !mods.auto;
+    if (type === 'speed') {
+        const speeds = [0.5, 1.0, 1.2, 1.5, 2.0, 3.0, 4.0];
+        mods.speed = speeds[(speeds.indexOf(mods.speed) + 1) % speeds.length];
+    }
+    if (type === 'abekobe') mods.abekobe = !mods.abekobe;
+    if (type === 'doron') mods.doron = !mods.doron;
+    updateModUI();
+}
+
+function updateModUI() {
+    document.getElementById('mod-auto').innerText = `AUTO: ${mods.auto ? 'ON' : 'OFF'}`;
+    document.getElementById('mod-auto').classList.toggle('active', mods.auto);
+    document.getElementById('mod-speed').innerText = `倍速: ${mods.speed}x`;
+    document.getElementById('mod-speed').classList.toggle('active', mods.speed !== 1.0);
+    document.getElementById('mod-abekobe').innerText = `あべこべ: ${mods.abekobe ? 'ON' : 'OFF'}`;
+    document.getElementById('mod-abekobe').classList.toggle('active', mods.abekobe);
+    document.getElementById('mod-doron').innerText = `ドロン: ${mods.doron ? 'ON' : 'OFF'}`;
+    document.getElementById('mod-doron').classList.toggle('active', mods.doron);
+}
+
+function playSE(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+
+    if (type === 'don' || type === 'big_don') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(type === 'big_don' ? 220 : 180, t);
+        osc.frequency.exponentialRampToValueAtTime(30, t + 0.1);
+        gain.gain.setValueAtTime(type === 'big_don' ? 2.5 : 1.8, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.start(t); osc.stop(t + 0.1);
+    } else if (type === 'ka' || type === 'big_ka') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(type === 'big_ka' ? 1200 : 900, t);
+        osc.frequency.exponentialRampToValueAtTime(200, t + 0.08);
+        gain.gain.setValueAtTime(type === 'big_ka' ? 1.5 : 1.0, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+        osc.start(t); osc.stop(t + 0.08);
+    }
+}
+
+function readTJA(file) {
+    return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.readAsText(file, 'shift_jis');
+    });
+}
+
+function parseTJA(text) {
+    const lines = text.split(/\r?\n/);
+    let meta = { title: 'No Title', bpm: 120, wave: '', offset: 0, balloons: [] };
+    let courses = {};
+    let currentCourse = 3;
+    let inHeader = true;
+
+    for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('//') || line === '') continue;
+
+        if (line.startsWith('TITLE:')) meta.title = line.substring(6).trim();
+        else if (line.startsWith('BPM:')) meta.bpm = parseFloat(line.substring(4).trim()) || 120;
+        else if (line.startsWith('WAVE:')) meta.wave = line.substring(5).trim();
+        else if (line.startsWith('OFFSET:')) meta.offset = parseFloat(line.substring(7).trim()) || 0;
+        else if (line.startsWith('BALLOON:')) {
+            meta.balloons = line.substring(8).split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+        }
+        else if (line.startsWith('COURSE:')) {
+            const c = line.substring(7).trim().toLowerCase();
+            if (c === 'easy' || c === '0') currentCourse = 0;
+            else if (c === 'normal' || c === '1') currentCourse = 1;
+            else if (c === 'hard' || c === '2') currentCourse = 2;
+            else if (c === 'oni' || c === '3') currentCourse = 3;
+            else if (c === 'edit' || c === 'ura' || c === '4') currentCourse = 4;
+        }
+        else if (line.startsWith('#START')) {
+            inHeader = false;
+            if (!courses[currentCourse]) courses[currentCourse] = [];
+        }
+        else if (line.startsWith('#END')) inHeader = true;
+        else if (!inHeader) courses[currentCourse].push(line);
+    }
+    return { meta, courses };
+}
+
+// タイムラインを完全静的にコンパイル（BPM変更・変拍子を完璧に事前計算）
+function buildTimeline(lines, initialBpm, offset, balloonList) {
+    let notes = [];
+    let barLines = [];
+    let currTime = 0;
+    let currBpm = initialBpm;
+    let currScroll = 1.0;
+    let currMeasure = 4 / 4;
+    let balloonIdx = 0;
+    let pendingLongNote = null;
+    let totalNormalNotes = 0;
+
+    let measureBuffer = [];
+
+    const processMeasure = (mStr) => {
+        const clean = mStr.replace(/[^0-9]/g, '');
+        const len = clean.length;
+        const measureDuration = (60 / currBpm) * 4 * currMeasure;
+
+        barLines.push({ time: currTime, bpm: currBpm, scroll: currScroll });
+
+        if (len > 0) {
+            const noteDuration = measureDuration / len;
+            for (let i = 0; i < len; i++) {
+                const c = clean[i];
+                const noteTime = currTime + (i * noteDuration);
+
+                if (c !== '0') {
+                    let type = null;
+                    if (c === '1') type = 'don';
+                    else if (c === '2') type = 'ka';
+                    else if (c === '3') type = 'big_don';
+                    else if (c === '4') type = 'big_ka';
+                    else if (c === '5') type = 'roll';
+                    else if (c === '6') type = 'big_roll';
+                    else if (c === '7' || c === '9') type = 'balloon';
+                    else if (c === '8') {
+                        if (pendingLongNote) {
+                            pendingLongNote.endTime = noteTime;
+                            pendingLongNote = null;
+                        }
+                    }
+
+                    if (type) {
+                        if (mods.abekobe) {
+                            if (type === 'don') type = 'ka';
+                            else if (type === 'ka') type = 'don';
+                            else if (type === 'big_don') type = 'big_ka';
+                            else if (type === 'big_ka') type = 'big_don';
+                        }
+
+                        if (type === 'don' || type === 'ka' || type === 'big_don' || type === 'big_ka') {
+                            totalNormalNotes++;
+                        }
+
+                        let reqHits = (type === 'balloon') ? (balloonList[balloonIdx++] || 5) : 0;
+                        let nObj = { 
+                            time: noteTime, 
+                            type, 
+                            scroll: currScroll, 
+                            bpm: currBpm, 
+                            hits: reqHits, 
+                            hitCount: 0,
+                            endTime: noteTime + 1.2,
+                            hit: false 
+                        };
+
+                        if (type === 'roll' || type === 'big_roll' || type === 'balloon') {
+                            pendingLongNote = nObj;
+                        }
+
+                        notes.push(nObj);
+                    }
+                }
+            }
+        }
+        currTime += measureDuration;
+    };
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('#BPMCHANGE')) {
+            currBpm = parseFloat(trimmed.substring(10).trim()) || currBpm;
+        } else if (trimmed.startsWith('#SCROLL')) {
+            currScroll = parseFloat(trimmed.substring(7).trim()) || currScroll;
+        } else if (trimmed.startsWith('#MEASURE')) {
+            const m = trimmed.substring(8).trim().split('/');
+            if (m.length === 2) currMeasure = parseFloat(m[0]) / parseFloat(m[1]);
+        } else if (trimmed.startsWith('#DELAY')) {
+            currTime += parseFloat(trimmed.substring(6).trim()) || 0;
+        } else if (trimmed.includes(',')) {
+            measureBuffer.push(trimmed.split(',')[0]);
+            processMeasure(measureBuffer.join(''));
+            measureBuffer = [];
+        } else if (!trimmed.startsWith('#')) {
+            measureBuffer.push(trimmed);
+        }
+    });
+
+    return { notes, barLines, totalNormalNotes, offset: offset };
+}
+
+let loadedSongs = [];
+let audioFilesPool = [];
+let selectedSongIdx = -1;
+let selectedCourse = 3;
+let timeline = { notes: [], barLines: [], totalNormalNotes: 0, offset: 0 };
+let gameState = 'TITLE';
+
+let score = 0, combo = 0, maxCombo = 0, gauge = 0, totalRollHits = 0;
+let baseScorePerNote = 1000;
+let gaugeAddPerNote = 1.0;
+let counts = { good: 0, ok: 0, bad: 0 };
+let judgePopups = [];
+let explosionParticles = [];
+let drumAnim = { don: 0, ka: 0, faceScale: 1.0 };
+let lastAutoRollTime = 0;
+
+function gotoScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    gameState = id.replace('screen-', '').toUpperCase();
+}
+
+function gotoDifficulty() {
+    if (selectedSongIdx < 0) return;
+    const song = loadedSongs[selectedSongIdx];
+    document.getElementById('diff-title').innerText = song.title;
+    document.getElementById('btn-ura').style.display = song.parsed.courses[4] ? 'flex' : 'none';
+    gotoScreen('screen-diff');
+}
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    const tjaFiles = files.filter(f => f.name.endsWith('.tja'));
+    const newAudio = files.filter(f => f.name.match(/\.(mp3|ogg|wav)$/i));
+
+    audioFilesPool.push(...newAudio);
+
+    for (let tFile of tjaFiles) {
+        const text = await readTJA(tFile);
+        const parsed = parseTJA(text);
+        const waveName = parsed.meta.wave.toLowerCase().replace(/\.(mp3|ogg|wav)$/, '');
+
+        let audioFile = audioFilesPool.find(a => a.name.toLowerCase().includes(waveName)) || audioFilesPool[0];
+
+        if (audioFile) {
+            loadedSongs.push({ title: parsed.meta.title, parsed: parsed, audioFile: audioFile });
+        }
+    }
+    renderSongList();
+});
+
+function renderSongList() {
+    const list = document.getElementById('song-list');
+    list.innerHTML = '';
+    if (loadedSongs.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding-top:70px; color:#aaa;">ファイルを追加読み込みしてください</div>`;
+        document.getElementById('btn-to-diff').disabled = true;
+        return;
+    }
+    loadedSongs.forEach((song, idx) => {
+        const card = document.createElement('div');
+        card.className = `song-card ${idx === selectedSongIdx ? 'selected' : ''}`;
+        card.innerHTML = `<span>🎵 ${song.title}</span>`;
+        card.onclick = () => {
+            selectedSongIdx = idx;
+            renderSongList();
+            document.getElementById('btn-to-diff').disabled = false;
+        };
+        list.appendChild(card);
+    });
+}
+
+async function startGame(courseIdx) {
+    selectedCourse = courseIdx;
+    const song = loadedSongs[selectedSongIdx];
+    const lines = song.parsed.courses[selectedCourse] || song.parsed.courses[3] || [];
+
+    timeline = buildTimeline(lines, song.parsed.meta.bpm, song.parsed.meta.offset || 0, song.parsed.meta.balloons || []);
+
+    const noteCount = Math.max(1, timeline.totalNormalNotes);
+    baseScorePerNote = Math.ceil(1000000 / noteCount / 10) * 10;
+    gaugeAddPerNote = 100 / (noteCount * 0.65);
+
+    score = 0; combo = 0; maxCombo = 0; gauge = 0; totalRollHits = 0;
+    counts = { good: 0, ok: 0, bad: 0 };
+    judgePopups = []; explosionParticles = []; isPaused = false;
+    document.getElementById('pause-overlay').style.display = 'none';
+
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const arrayBuffer = await song.audioFile.arrayBuffer();
+    bgmBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    gotoScreen('gameCanvas');
+    gameState = 'PLAY';
+
+    startAudio(0);
+}
+
+function startAudio(offsetSec) {
+    if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
+    bgmSource = audioCtx.createBufferSource();
+    bgmSource.buffer = bgmBuffer;
+    bgmSource.connect(audioCtx.destination);
+    
+    bgmStartTime = audioCtx.currentTime - offsetSec + LEAD_TIME;
+    bgmSource.start(bgmStartTime, offsetSec);
+}
+
+function getSongCurrentTime() {
+    if (isPaused) return pauseOffset + timeline.offset;
+    const rawAudioTime = audioCtx.currentTime - bgmStartTime;
+    return rawAudioTime + timeline.offset;
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && gameState === 'PLAY') togglePause();
+});
+
+function togglePause() {
+    if (!isPaused) {
+        isPaused = true;
+        pauseOffset = audioCtx.currentTime - bgmStartTime;
+        try { bgmSource.stop(); } catch(e){}
+        document.getElementById('pause-overlay').style.display = 'flex';
+    } else {
+        resumeGame();
+    }
+}
+
+function resumeGame() {
+    isPaused = false;
+    document.getElementById('pause-overlay').style.display = 'none';
+    startAudio(pauseOffset);
+}
+
+function restartGame() {
+    if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
+    pauseOffset = 0;
+    startGame(selectedCourse);
+}
+
+function quitGame() {
+    if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
+    document.getElementById('pause-overlay').style.display = 'none';
+    gotoScreen('screen-select');
+}
+
+window.addEventListener('keydown', (e) => {
+    if (gameState !== 'PLAY' || isPaused || mods.auto) return;
+    const k = e.key.toLowerCase();
+    let type = null;
+    if (k === keyBinds.donLeft || k === keyBinds.donRight) type = 'don';
+    if (k === keyBinds.kaLeft || k === keyBinds.kaRight) type = 'ka';
+
+    if (type) {
+        playSE(type);
+        if (type === 'don') { drumAnim.don = 12; drumAnim.faceScale = 1.25; }
+        if (type === 'ka') { drumAnim.ka = 12; drumAnim.faceScale = 1.18; }
+        judgeHit(type);
+    }
+});
+
+function judgeHit(type) {
+    const songTime = getSongCurrentTime();
+
+    // 1. 連打・風船判定
+    const activeLong = timeline.notes.find(n => !n.hit && (n.type === 'roll' || n.type === 'big_roll' || n.type === 'balloon') && songTime >= n.time && songTime <= n.endTime);
+    if (activeLong) {
+        activeLong.hitCount++;
+        totalRollHits++;
+        if (activeLong.type === 'balloon') {
+            score += 300;
+            triggerHitExplosion(TARGET_X, LANE_Y, '#ff9800', false);
+            if (activeLong.hitCount >= activeLong.hits) {
+                activeLong.hit = true;
+                score += 5000;
+                addPopup('割れた！', '#ffd700');
+                triggerHitExplosion(TARGET_X, LANE_Y, '#ffd700', true);
+            }
+        } else {
+            score += activeLong.type === 'big_roll' ? 360 : 120;
+            triggerHitExplosion(TARGET_X, LANE_Y, activeLong.type === 'big_roll' ? '#ffd700' : '#ffeb3b', false);
+        }
+        return;
+    }
+
+    // 2. 通常ノーツ判定
+    const target = timeline.notes.find(n => !n.hit && (n.type === 'don' || n.type === 'ka' || n.type === 'big_don' || n.type === 'big_ka') && Math.abs(n.time - songTime) <= 0.15);
+
+    if (target) {
+        const absDiff = Math.abs(target.time - songTime);
+        const isDon = (type === 'don' && (target.type === 'don' || target.type === 'big_don'));
+        const isKa = (type === 'ka' && (target.type === 'ka' || target.type === 'big_ka'));
+
+        if (isDon || isKa) {
+            target.hit = true;
+            triggerHitExplosion(TARGET_X, LANE_Y, target.type.includes('don') ? '#ff2442' : '#00bfff', false);
+
+            if (absDiff <= 0.042) {
+                score += baseScorePerNote * (target.type.startsWith('big') ? 2 : 1);
+                combo++; counts.good++;
+                gauge = Math.min(100, gauge + gaugeAddPerNote);
+                addPopup('良', '#ffea00');
+            } else if (absDiff <= 0.108) {
+                score += Math.round(baseScorePerNote / 2) * (target.type.startsWith('big') ? 2 : 1);
+                combo++; counts.ok++;
+                gauge = Math.min(100, gauge + gaugeAddPerNote * 0.6);
+                addPopup('可', '#ffffff');
+            } else {
+                combo = 0; counts.bad++;
+                gauge = Math.max(0, gauge - 1.5);
+                addPopup('不可', '#ff2442');
+            }
+            if (combo > maxCombo) maxCombo = combo;
+        }
+    }
+}
+
+function addPopup(text, color) { judgePopups.push({ text, color, y: 130, alpha: 1.0 }); }
+
+function triggerHitExplosion(x, y, color, isBig) {
+    const count = isBig ? 8 : 5;
+    for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 / count) * i;
+        const speed = Math.random() * 3 + 1.5;
+        explosionParticles.push({
+            x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+            color, size: Math.random() * 3 + 2, alpha: 0.8
+        });
+    }
+}
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (gameState === 'PLAY') {
+        const songTime = getSongCurrentTime();
+
+        // AUTOモード
+        if (mods.auto) {
+            timeline.notes.forEach(n => {
+                if (!n.hit && (n.time - songTime) <= 0) {
+                    if (n.type === 'don' || n.type === 'ka' || n.type === 'big_don' || n.type === 'big_ka') {
+                        n.hit = true;
+                        playSE(n.type.includes('don') ? 'don' : 'ka');
+                        if (n.type.includes('don')) drumAnim.don = 10; else drumAnim.ka = 10;
+                        score += baseScorePerNote; combo++; counts.good++;
+                        gauge = Math.min(100, gauge + gaugeAddPerNote);
+                        addPopup('良', '#ffea00');
+                        triggerHitExplosion(TARGET_X, LANE_Y, n.type.includes('don') ? '#ff2442' : '#00bfff', false);
+                        if (combo > maxCombo) maxCombo = combo;
+                    }
+                }
+            });
+
+            if (songTime - lastAutoRollTime > 0.04) {
+                const activeLong = timeline.notes.find(n => !n.hit && (n.type === 'roll' || n.type === 'big_roll' || n.type === 'balloon') && songTime >= n.time && songTime <= n.endTime);
+                if (activeLong) {
+                    lastAutoRollTime = songTime;
+                    playSE('don');
+                    drumAnim.don = 8;
+                    judgeHit('don');
+                }
+            }
+        }
+
+        // レイヤー1: レーン背景
+        ctx.fillStyle = '#111018'; ctx.fillRect(0, 0, canvas.width, 120);
+        ctx.fillStyle = '#050508'; ctx.fillRect(0, 240, canvas.width, 300);
+        ctx.fillStyle = '#1e1e28'; ctx.fillRect(0, 120, canvas.width, 120);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(0, 120, canvas.width, 120);
+
+        // レイヤー2: 小節線描画
+        timeline.barLines.forEach(b => {
+            const timeDiff = b.time - songTime;
+            const x = TARGET_X + (timeDiff * (b.bpm / 60) * 190 * b.scroll * mods.speed);
+            if (x > 0 && x < canvas.width) {
+                ctx.beginPath(); ctx.moveTo(x, 120); ctx.lineTo(x, 240);
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+            }
+        });
+
+        // レイヤー3: 連打帯描画
+        timeline.notes.forEach(n => {
+            if (n.type === 'roll' || n.type === 'big_roll') {
+                const startX = TARGET_X + ((n.time - songTime) * (n.bpm / 60) * 190 * n.scroll * mods.speed);
+                const endX = TARGET_X + ((n.endTime - songTime) * (n.bpm / 60) * 190 * n.scroll * mods.speed);
+
+                if (endX > -100 && startX < canvas.width + 100) {
+                    ctx.fillStyle = '#ffeb3b';
+                    const h = n.type === 'big_roll' ? 56 : 40;
+                    ctx.fillRect(startX, LANE_Y - h/2, Math.max(0, endX - startX), h);
+                    ctx.beginPath(); ctx.arc(startX, LANE_Y, h/2, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(endX, LANE_Y, h/2, 0, Math.PI * 2); ctx.fill();
+
+                    if (n.hitCount > 0 && songTime >= n.time && songTime <= n.endTime) {
+                        ctx.fillStyle = '#000'; ctx.font = '900 18px "M PLUS Rounded 1c"'; ctx.textAlign = 'center';
+                        ctx.fillText(`${n.hitCount}打！`, Math.max(TARGET_X + 40, startX + 30), LANE_Y + 6);
+                    }
+                }
+            }
+        });
+
+        // レイヤー4: 太鼓＆判定枠
+        ctx.save();
+        ctx.translate(85, LANE_Y);
+        ctx.scale(drumAnim.faceScale, drumAnim.faceScale);
+        ctx.beginPath(); ctx.arc(0, 0, 44 + drumAnim.ka, 0, Math.PI * 2);
+        ctx.fillStyle = '#00bfff'; ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, 32 + drumAnim.don, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff2442'; ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-10, -5, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(10, -5, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        if (drumAnim.don > 0) drumAnim.don--;
+        if (drumAnim.ka > 0) drumAnim.ka--;
+        drumAnim.faceScale += (1.0 - drumAnim.faceScale) * 0.15;
+
+        // 判定枠
+        ctx.beginPath(); ctx.arc(TARGET_X, LANE_Y, 32, 0, Math.PI * 2);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+
+        // レイヤー5: ノーツ描画
+        timeline.notes.forEach(n => {
+            if (n.hit && n.type !== 'roll' && n.type !== 'big_roll') return;
+            if (n.type === 'roll' || n.type === 'big_roll') return;
+
+            const timeDiff = n.time - songTime;
+            const startX = TARGET_X + (timeDiff * (n.bpm / 60) * 190 * n.scroll * mods.speed);
+
+            // 見逃し処理
+            if (startX < TARGET_X - 60 && !n.hit && !mods.auto && (n.type === 'don' || n.type === 'ka' || n.type === 'big_don' || n.type === 'big_ka')) {
+                n.hit = true; combo = 0; counts.bad++;
+                gauge = Math.max(0, gauge - 1.5);
+                addPopup('不可', '#888888');
+            }
+
+            if (startX > -50 && startX < canvas.width + 50) {
+                if (!mods.doron) {
+                    ctx.beginPath();
+                    const r = (n.type.startsWith('big') || n.type === 'balloon') ? 28 : 20;
+                    ctx.arc(startX, LANE_Y, r, 0, Math.PI * 2);
+                    if (n.type === 'balloon') ctx.fillStyle = '#ff9800';
+                    else ctx.fillStyle = n.type.includes('don') ? '#ff2442' : '#00bfff';
+                    ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+                }
+            }
+        });
+
+        // レイヤー6: 風船連打（判定枠上にポップアップ）
+        const activeBalloon = timeline.notes.find(n => !n.hit && n.type === 'balloon' && songTime >= n.time && songTime <= n.endTime);
+        if (activeBalloon) {
+            const remaining = Math.max(0, activeBalloon.hits - activeBalloon.hitCount);
+            const bScale = 1.0 + (activeBalloon.hitCount / activeBalloon.hits) * 0.4;
+            
+            ctx.save();
+            ctx.translate(TARGET_X, LANE_Y - 45);
+            ctx.scale(bScale, bScale);
+            
+            ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff9800'; ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+
+            ctx.fillStyle = '#fff'; ctx.font = '900 16px "M PLUS Rounded 1c"'; ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+            ctx.strokeText(`${remaining}`, 0, 6);
+            ctx.fillText(`${remaining}`, 0, 6);
+            ctx.restore();
+        }
+
+        // レイヤー7: 打撃エフェクト
+        explosionParticles.forEach((p, idx) => {
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
+            ctx.fill();
+            p.x += p.vx; p.y += p.vy; p.alpha -= 0.05;
+            if (p.alpha <= 0) explosionParticles.splice(idx, 1);
+        });
+        ctx.globalAlpha = 1.0;
+
+        // レイヤー8: 判定ポップアップ
+        judgePopups.forEach((p, idx) => {
+            ctx.fillStyle = p.color; ctx.font = '900 36px "M PLUS Rounded 1c"'; ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 5;
+            ctx.globalAlpha = p.alpha;
+            ctx.strokeText(p.text, TARGET_X, p.y);
+            ctx.fillText(p.text, TARGET_X, p.y);
+            p.y -= 1.0; p.alpha -= 0.04;
+            if (p.alpha <= 0) judgePopups.splice(idx, 1);
+        });
+        ctx.globalAlpha = 1.0;
+
+        // レイヤー9: 魂ゲージ
+        ctx.fillStyle = '#222'; ctx.fillRect(320, 45, 540, 26);
+        const gW = (540 * gauge) / 100;
+        ctx.fillStyle = gauge >= 75 ? '#ffd700' : '#ff2442';
+        ctx.fillRect(320, 45, gW, 26);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(320, 45, 540, 26);
+        ctx.fillStyle = '#ffd700'; ctx.fillRect(320 + 540 * 0.75, 38, 4, 40);
+
+        // レイヤー10: コンボ＆スコア
+        if (combo >= 3) {
+            ctx.save(); ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffd700'; ctx.strokeStyle = '#000'; ctx.lineWidth = 6;
+            ctx.font = '900 48px "M PLUS Rounded 1c"';
+            ctx.strokeText(`${combo}`, 85, 95); ctx.fillText(`${combo}`, 85, 95);
+            ctx.font = '900 16px "M PLUS Rounded 1c"';
+            ctx.strokeText('COMBO', 85, 112); ctx.fillText('COMBO', 85, 112);
+            ctx.restore();
+        }
+
+        ctx.fillStyle = '#fff'; ctx.font = '900 24px "M PLUS Rounded 1c"'; ctx.textAlign = 'left';
+        ctx.fillText(`SCORE: ${score.toString().padStart(7, '0')}`, 320, 32);
+
+        // 終了判定
+        if (!isPaused && bgmSource && (audioCtx.currentTime - bgmStartTime) > bgmBuffer.duration + 1.0) {
+            finishGame();
+        }
+    }
+
+    requestAnimationFrame(render);
+}
+
+function finishGame() {
+    if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
+
+    let resText = '演奏終了';
+    let resColor = '#aaa';
+
+    if (counts.bad === 0 && (counts.good + counts.ok) > 0) {
+        if (counts.ok === 0) {
+            resText = '全良！ドンダフルコンボ！！';
+            resColor = '#ffd700';
+        } else {
+            resText = 'フルコンボ！';
+            resColor = '#ff4757';
+        }
+    } else if (gauge >= 75) {
+        resText = 'ノルマクリア！';
+        resColor = '#ffd700';
+    }
+
+    const stEl = document.getElementById('res-status');
+    stEl.innerText = resText;
+    stEl.style.color = resColor;
+
+    document.getElementById('res-score').innerText = score.toString().padStart(7, '0');
+    document.getElementById('res-good').innerText = counts.good;
+    document.getElementById('res-ok').innerText = counts.ok;
+    document.getElementById('res-bad').innerText = counts.bad;
+    document.getElementById('res-combo').innerText = maxCombo;
+    document.getElementById('res-roll').innerText = totalRollHits;
+
+    gotoScreen('screen-result');
+}
+
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
